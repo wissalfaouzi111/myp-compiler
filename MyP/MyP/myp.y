@@ -1,4 +1,4 @@
-%{
+  %{
 
 #include "Table_des_symboles.h"
 
@@ -251,10 +251,46 @@ exp
 // V.1 Exp. arithmetiques
 : MOINS exp %prec UNA         {}
          // -x + y lue comme (- x) + y  et pas - (x + y)
-| exp PLUS exp                { printf("ADDI\n"); }
-| exp MOINS exp               { printf("SUBI\n"); }
-| exp STAR exp                { printf("MULTI\n");}
-| exp DIV exp                 { printf("DIVI\n");}
+| exp PLUS exp                {
+                                if( $1 == FLOAT || $3 == FLOAT){
+                                  $$=FLOAT;
+                                }
+                                if( $$ == INT ){
+                                  printf("ADDI\n");
+                                }else{
+                                  printf("ADDF\n");
+                                }
+                                }      
+| exp MOINS exp               { 
+                                if( $1 == FLOAT || $3 == FLOAT){
+                                  $$=FLOAT;
+                                }
+                                if( $$ == INT){
+                                  printf("SUBI\n");
+                                }else{
+                                  printf("SUBF\n");
+                                }
+                              }
+| exp STAR exp                { 
+                                if( $1 == FLOAT || $3 == FLOAT){
+                                  $$=FLOAT;
+                                }
+                                if( $$ == INT){
+                                  printf("MULTI\n");
+                                }else{
+                                  printf("MULTF\n");
+                                }
+                              }
+| exp DIV exp                 { 
+                                if( $1 == FLOAT || $3 == FLOAT){
+                                  $$=FLOAT;
+                                }
+                                if( $$ == INT){
+                                  printf("DIVI\n");
+                                }else{
+                                  printf("DIVF\n");
+                                }
+                              }
 | PO exp PF                   { $$=$2;}
 | ID                          { }
 | app                         { }
