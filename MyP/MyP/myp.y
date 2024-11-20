@@ -82,6 +82,34 @@ char * type2string (int c) {
     }  
 };
 
+/*Return 0 if there's no need of conversion, 1 if we got to convert the first argument, 2 for the second argument*/
+int convert(int type1, int type2){
+  if(type1==type2){return 0;}
+  else if (type1==INT) { return 1;}
+  else{ return 2;}
+}
+
+void convert_with_op(int type1, int type2, char* operator,int* return_type){
+  int conversion = convert(type1,type2);
+    if(conversion==1 ){
+    printf("I2F1\n");
+    *return_type=FLOAT;
+  }
+    else if(conversion==2){
+      printf("I2F2\n");
+      *return_type=FLOAT;
+    }
+    else{
+      *return_type=type1;
+    }
+    if(*return_type==INT){
+      printf("%sI\n",operator);
+    }
+    else{
+      printf("%sF\n",operator);
+   }
+}
+
   
   %}
 
@@ -252,44 +280,38 @@ exp
 : MOINS exp %prec UNA         {}
          // -x + y lue comme (- x) + y  et pas - (x + y)
 | exp PLUS exp                {
-                                if( $1 == FLOAT || $3 == FLOAT){
-                                  $$=FLOAT;
+                                convert_with_op($1,$3,"ADD",&$$);
+                                /*int conversion = convert($1,$3);
+                                if(conversion==1 ){
+                                    printf("I2F1\n");
+                                    $$==FLOAT;
                                 }
-                                if( $$ == INT ){
+                                else if(conversion==2){
+                                  printf("I2F2\n");
+                                  $$==FLOAT;
+                                }
+                                else{
+                                    $$=$1;
+                                }
+                                if($$=INT){
                                   printf("ADDI\n");
-                                }else{
+                                }
+                                else{
                                   printf("ADDF\n");
-                                }
-                                }      
+                                }*/
+}
+                                   
 | exp MOINS exp               { 
-                                if( $1 == FLOAT || $3 == FLOAT){
-                                  $$=FLOAT;
-                                }
-                                if( $$ == INT){
-                                  printf("SUBI\n");
-                                }else{
-                                  printf("SUBF\n");
-                                }
+                                
+                                convert_with_op($1,$3,"SUB",&$$);
                               }
 | exp STAR exp                { 
-                                if( $1 == FLOAT || $3 == FLOAT){
-                                  $$=FLOAT;
-                                }
-                                if( $$ == INT){
-                                  printf("MULTI\n");
-                                }else{
-                                  printf("MULTF\n");
-                                }
+                                
+                                convert_with_op($1,$3,"MULT",&$$);
                               }
 | exp DIV exp                 { 
-                                if( $1 == FLOAT || $3 == FLOAT){
-                                  $$=FLOAT;
-                                }
-                                if( $$ == INT){
-                                  printf("DIVI\n");
-                                }else{
-                                  printf("DIVF\n");
-                                }
+                              
+                                convert_with_op($1,$3,"DIV",&$$);
                               }
 | PO exp PF                   { $$=$2;}
 | ID                          { }
