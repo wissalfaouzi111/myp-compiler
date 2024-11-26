@@ -4,7 +4,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-  
+
+    
 extern int yylex();
 extern int yyparse();
 
@@ -14,7 +15,7 @@ void yyerror (char* s) {
   }
 		
  int depth=0; // block depth
- 
+ int offset_value =0;
 
   char * start_main=  
 "int main() {\n\
@@ -117,7 +118,7 @@ void convert_with_op(int type1, int type2, char* operator,int* return_type){
 %start prog  
 
 // liste de tous les non terminaux dont vous voulez manipuler l'attribut
-%type <type_value> type exp  typename
+%type <type_value> type exp  typename idA
 %type <string_value> fun_head
 
  /* Attention, la rêgle de calcul par défaut $$=$1 
@@ -154,11 +155,19 @@ decl_list : decl_list decl   {}
 | decl                       {}
 ;
 
-decl: ID CLN type PV             {}
+decl: ID CLN type PV             {set_symbol_value($1 ,makeSymbol($3,offset_value++,depth));
+	      if( $3 == INT ){
+		printf("LOADI(0)\n");
+	      }
+	      else {
+		printf("LOADF(0.0)\n");
+	      }
+	      
+	    }
 ;
 
 type
-: typename                     {}
+: typename                     {$$ = $1;}
 ;
 
 typename
@@ -231,7 +240,24 @@ block_end : BOUT
 
 // IV.1 Affectations
 
-aff : ID AFF exp               {}
+
+aff : idA AFF exp               {
+  if($3 == FLOAT && $1 == INT){
+    printf("Erreur: Type error in affectation\n");
+    exit(1);
+  }
+  else{
+    if($3 == INT && $1 == FLOAT){
+      printf("I2F2\n");
+    }
+    printf("STOREP\n");
+  } 
+}
+;
+idA : ID {attribute anAttribute = get_symbol_value($1);
+  $$=anAttribute->type;
+  printf("LOADBP\n");
+  printf("SHIFT(%d)\n",get_symbol_value($1)->offset);}
 ;
 
 // IV.2. Conditionelles
@@ -314,7 +340,12 @@ exp
                                 convert_with_op($1,$3,"DIV",&$$);
                               }
 | PO exp PF                   { $$=$2;}
-| ID                          { }
+| ID                          { 
+  printf("LOADBP\n");
+  printf("SHIFT(%i)\n",get_symbol_value($1)->offset);
+  printf("LOADP\n");
+  $$=get_symbol_value($1)->type;
+}
 | app                         { }
 | NUM                         { printf("LOADI(%i)\n",$1); $$ = INT;}
 | DEC                         { printf("LOADF(%f)\n",$1); $$ = FLOAT;}
