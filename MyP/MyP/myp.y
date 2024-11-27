@@ -42,7 +42,7 @@ return stack[sp-1].int_value;\n\
   int offset_value;
 }
 
-%token <int_value> NUM
+%token <int_value> NUM 
 %token <float_value> DEC
 
 %token PRG FUN VAR BIN BOUT AFF CLN DOT
@@ -112,15 +112,19 @@ void convert_with_op(int type1, int type2, char* operator,int* return_type){
 }
 
   
+int make_label(){
+  static int n=0;
+  return n++;
+}
   %}
 
 
 %start prog  
 
 // liste de tous les non terminaux dont vous voulez manipuler l'attribut
-%type <type_value> type exp  typename idA
+%type <type_value> type exp  typename idA bool_cond 
 %type <string_value> fun_head
-
+%type <int_value> if while
  /* Attention, la rêgle de calcul par défaut $$=$1 
     peut créer des demandes/erreurs de type d'attribut */
 
@@ -246,12 +250,10 @@ aff : idA AFF exp               {
     printf("Erreur: Type error in affectation\n");
     exit(1);
   }
-  else{
-    if($3 == INT && $1 == FLOAT){
+  if($3 == INT && $1 == FLOAT){
       printf("I2F2\n");
-    }
-    printf("STOREP\n");
-  } 
+  }
+  printf("STOREP\n");
 }
 ;
 idA : ID {attribute anAttribute = get_symbol_value($1);
@@ -266,30 +268,39 @@ idA : ID {attribute anAttribute = get_symbol_value($1);
 //           avec ELSE en entrée (voir y.output)
 
 cond :
-if bool_cond inst  elsop       {}
+if bool_cond inst  elsop       { 
+  printf("End_%d:\n",$1);
+}
 ;
 
 elsop : else inst              {}
 |                  %prec IFX   {} // juste un "truc" pour éviter le message de conflit shift / reduce
 ;
 
-bool_cond : PO exp PF         {}
+bool_cond : PO exp PF         { $$ = $2 ;
+                  printf("IFN(False_%d)\n",$<int_value>0);
+}
 ;
 
-if : IF                       {}
+if : IF                      {$$=make_label();}
 ;
 
-else : ELSE                   {}
+else : ELSE                   { printf("GOTO(End_%d)\n",$<int_value>-2);
+                                printf("False_%d:\n",$<int_value>-2);
+}
 ;
 
 // IV.3. Iterations
 
-loop : while while_cond inst  {}
+loop : while while_cond inst  { printf("GOTO(StartLoop_%d)\n",$1);
+                                printf("EndLoop_%d:\n",$1); }
 ;
 
-while_cond : PO exp PF        {}
+while_cond : PO exp PF        { printf("IFN(EndLoop_%d)\n",$<int_value>0); }
 
-while : WHILE                 {}
+while : WHILE                 { $$=make_label();
+                                printf("StartLoop_%d:\n",$1);
+}
 ;
 
 // IV.4. Valeur
@@ -307,24 +318,6 @@ exp
          // -x + y lue comme (- x) + y  et pas - (x + y)
 | exp PLUS exp                {
                                 convert_with_op($1,$3,"ADD",&$$);
-                                /*int conversion = convert($1,$3);
-                                if(conversion==1 ){
-                                    printf("I2F1\n");
-                                    $$==FLOAT;
-                                }
-                                else if(conversion==2){
-                                  printf("I2F2\n");
-                                  $$==FLOAT;
-                                }
-                                else{
-                                    $$=$1;
-                                }
-                                if($$=INT){
-                                  printf("ADDI\n");
-                                }
-                                else{
-                                  printf("ADDF\n");
-                                }*/
 }
                                    
 | exp MOINS exp               { 
@@ -354,12 +347,14 @@ exp
 // V.2. Booléens
 
 | NOT exp %prec UNA           {}
-| exp INF exp                 {}
-| exp SUP exp                 {}
-| exp EQUAL exp               {}
-| exp DIFF exp                {}
-| exp AND exp                 {}
-| exp OR exp                  {}
+| exp INF exp                 { printf("LTI\n") ;}
+| exp SUP exp                 { printf("GTI\n");}
+| exp EQUAL exp               { if( $1 == $3){ $$ = 1;}
+else{$$=0;}}
+| exp DIFF exp                { if($1 != $3 ){$$ = 1;}
+else {$$=0;}}
+| exp AND exp                 {$$ = $1 * $3 ;}
+| exp OR exp                  { $$ = $1 + $3 ;}
 
 ;
 
