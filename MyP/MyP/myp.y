@@ -14,7 +14,7 @@ void yyerror (char* s) {
   exit(0);
   }
 		
-int depth=0; // block depth
+int depth=-1; // block depth
 int offset_value =0;
 
   char * start_main=  
@@ -116,7 +116,7 @@ int make_label(){
 }
 
 void do_n_time(int n){
-  for (int i = 0 ; i < n ; i++){
+  for (int i = 0 ; i < n; i++){
     printf("LOADP\n");
   }
 }
@@ -158,23 +158,31 @@ opt_vars : var decl_list
 
 var: VAR {
   depth++;
-  printf("SAVEBP\n");
+  if( depth > 0){
+    printf("SAVEBP\n");
+  }
 }// ici on entre dans des declarations de variables
 ;
 
-decl_list : decl_list decl   {} 
+decl_list : decl_list decl   { } 
 | decl                       {}
 ;
 
-decl: ID CLN type PV             {set_symbol_value($1 ,makeSymbol($3,offset_value++,depth));
-	      if( $3 == INT ){
-		printf("LOADI(0)\n");
-	      }
-	      else {
+decl: ID CLN type PV             {
+  int offset_value1 =1;
+  if(depth == 0){
+    set_symbol_value($1 ,makeSymbol($3,offset_value++,depth));
+  }
+  else {
+    set_symbol_value($1 ,makeSymbol($3,offset_value1++,depth));
+  }
+	if( $3 == INT ){
+	  printf("LOADI(0)\n");
+	}
+	else {
 		printf("LOADF(0.0)\n");
-	      }
-	      
-	    }
+	}
+}
 ;
 
 type
@@ -245,7 +253,10 @@ block_begin : BIN
 // entrée dans un sous-bloc
 
 block_end : BOUT {
-  printf("REPLACEBP\n");
+  if(depth > 0 ){
+    printf("RESTOREBP\n");
+  }
+  remove_symbol_depth(depth);
   depth--;
 }
 ;
@@ -269,7 +280,7 @@ aff : idA AFF exp               {
 idA : ID {attribute anAttribute = get_symbol_value($1);
   $$=anAttribute->type;
   printf("LOADBP\n");
-  do_n_time(anAttribute->depth - depth);
+  do_n_time(depth - anAttribute->depth );
   printf("SHIFT(%d)\n",get_symbol_value($1)->offset);}
 ;
 
@@ -345,6 +356,7 @@ exp
 | PO exp PF                   { $$=$2;}
 | ID                          { 
   printf("LOADBP\n");
+  do_n_time(depth - get_symbol_value($1)->depth );
   printf("SHIFT(%i)\n",get_symbol_value($1)->offset);
   printf("LOADP\n");
   $$=get_symbol_value($1)->type;
