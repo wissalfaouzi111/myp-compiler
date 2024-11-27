@@ -14,8 +14,8 @@ void yyerror (char* s) {
   exit(0);
   }
 		
- int depth=0; // block depth
- int offset_value =0;
+int depth=0; // block depth
+int offset_value =0;
 
   char * start_main=  
 "int main() {\n\
@@ -83,20 +83,18 @@ char * type2string (int c) {
     }  
 };
 
-/*Return 0 if there's no need of conversion, 1 if we got to convert the first argument, 2 for the second argument*/
-int convert(int type1, int type2){
-  if(type1==type2){return 0;}
-  else if (type1==INT) { return 1;}
-  else{ return 2;}
-}
-
+/*
+  the function convert takes in @params an int type1 , int type2, char* operator,int* return_type :
+    Convert the types if one of the types is float
+    Apply the operator char* operator 
+    Store the returned type in the return_type
+*/
 void convert_with_op(int type1, int type2, char* operator,int* return_type){
-  int conversion = convert(type1,type2);
-    if(conversion==1 ){
+    if(type1==INT && type2 == FLOAT ){
     printf("I2F1\n");
     *return_type=FLOAT;
   }
-    else if(conversion==2){
+    else if( type2 == INT && type1 == FLOAT){
       printf("I2F2\n");
       *return_type=FLOAT;
     }
@@ -115,6 +113,12 @@ void convert_with_op(int type1, int type2, char* operator,int* return_type){
 int make_label(){
   static int n=0;
   return n++;
+}
+
+void do_n_time(int n){
+  for (int i = 0 ; i < n ; i++){
+    printf("LOADP\n");
+  }
 }
   %}
 
@@ -152,7 +156,10 @@ opt_vars : var decl_list
 |
 ;
 
-var: VAR // ici on entre dans des declarations de variables
+var: VAR {
+  depth++;
+  printf("SAVEBP\n");
+}// ici on entre dans des declarations de variables
 ;
 
 decl_list : decl_list decl   {} 
@@ -202,7 +209,7 @@ opt_arg : PO arg_list PF
 | ;
 
 arg_list : arg vir arg_list
-	   // récursion droite pour numéroter les paramètres du dernier au premier
+// récursion droite pour numéroter les paramètres du dernier au premier
 | arg
 
 arg : ID CLN type              {}
@@ -221,7 +228,7 @@ inst_list: inst_list inst PV   {}
 | inst PV                      {}
 ;
 
-     // chaque instruction se termine par ";" contrairement au langage C
+// chaque instruction se termine par ";" contrairement au langage C
 
 inst:
 opt_vars block_begin inst_list block_end   {}
@@ -233,11 +240,14 @@ opt_vars block_begin inst_list block_end   {}
 
 // Entrée et sortie explicite d'un bloc
 
-block_begin : BIN
+block_begin : BIN 
 ;
 // entrée dans un sous-bloc
 
-block_end : BOUT
+block_end : BOUT {
+  printf("REPLACEBP\n");
+  depth--;
+}
 ;
 // sortie d'un sous-bloc
 
@@ -259,6 +269,7 @@ aff : idA AFF exp               {
 idA : ID {attribute anAttribute = get_symbol_value($1);
   $$=anAttribute->type;
   printf("LOADBP\n");
+  do_n_time(anAttribute->depth - depth);
   printf("SHIFT(%d)\n",get_symbol_value($1)->offset);}
 ;
 
@@ -269,12 +280,11 @@ idA : ID {attribute anAttribute = get_symbol_value($1);
 
 cond :
 if bool_cond inst  elsop       { 
-  printf("End_%d:\n",$1);
 }
 ;
 
-elsop : else inst              {}
-|                  %prec IFX   {} // juste un "truc" pour éviter le message de conflit shift / reduce
+elsop : else inst              {printf("End_%d:\n",$<int_value>-2);}
+|                  %prec IFX   {printf("False_%d:\n",$<int_value>-2);} // juste un "truc" pour éviter le message de conflit shift / reduce
 ;
 
 bool_cond : PO exp PF         { $$ = $2 ;
