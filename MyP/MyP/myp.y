@@ -16,7 +16,8 @@ void yyerror (char* s) {
 		
 int depth=-1; // block depth
 int offset_value =0;
-
+int args_number =0;
+int params_offset = -2;
   char * start_main=  
 "int main() {\n\
 /* Starting (main) program target PCode */\n";
@@ -115,11 +116,13 @@ int make_label(){
   return n++;
 }
 
+
 void do_n_time(int n){
   for (int i = 0 ; i < n; i++){
     printf("LOADP\n");
   }
 }
+
   %}
 
 
@@ -127,8 +130,8 @@ void do_n_time(int n){
 
 // liste de tous les non terminaux dont vous voulez manipuler l'attribut
 %type <type_value> type exp  typename idA bool_cond 
-%type <string_value> fun_head
-%type <int_value> if while
+%type <string_value> fun_head fun_name fid arg
+%type <label_value> if while
  /* Attention, la rêgle de calcul par défaut $$=$1 
     peut créer des demandes/erreurs de type d'attribut */
 
@@ -172,9 +175,11 @@ decl: ID CLN type PV             {
   int offset_value1 =1;
   if(depth == 0){
     set_symbol_value($1 ,makeSymbol($3,offset_value++,depth));
+    printf("// Declare variable %s of type %s with offset %d at depth %d \n", $1 , type2string($3),offset_value-1,depth);
   }
   else {
     set_symbol_value($1 ,makeSymbol($3,offset_value1++,depth));
+    printf("// Declare variable %s of type %s with offset %d at depth %d \n", $1 , type2string($3),offset_value1-1,depth);
   }
 	if( $3 == INT ){
 	  printf("LOADI(0)\n");
@@ -202,25 +207,31 @@ opt_funs : opt_funs function
 | {printf("/* (Optionnal) functions' target PCode */\n\n");}
 ;
 
-function : fun_head fun_body {}
+function : fun_head fun_body {printf("}\n");}
 ;
 
-fun_head : fun fun_name opt_arg CLN type {}
+fun_head : fun fun_name opt_arg CLN type {
+  set_symbol_value($2,makeSymbol($5,-1,0));
+}
 ;
 
-fun:FUN
+fun:FUN 
 
-fun_name : ID
+fun_name : ID {
+  printf("void call_%s {\n",$1);
+}
 ;
 
 opt_arg : PO arg_list PF
 | ;
 
-arg_list : arg vir arg_list
+arg_list : arg vir arg_list {get_symbol_value($1)->offset=params_offset -- ;}
 // récursion droite pour numéroter les paramètres du dernier au premier
-| arg
+| arg { get_symbol_value($1)->offset=params_offset--;}
 
-arg : ID CLN type              {}
+arg : ID CLN type              { $$=$1;
+  set_symbol_value($1, makeSymbol($3,0,depth));
+}
 ;
 
 vir : VIR                      {}
@@ -278,10 +289,11 @@ aff : idA AFF exp               {
 }
 ;
 idA : ID {attribute anAttribute = get_symbol_value($1);
+  printf("// loading adress (left value) in stack\n");
   $$=anAttribute->type;
-  printf("LOADBP\n");
+  printf("LOADBP // load current BP address\n");
   do_n_time(depth - anAttribute->depth );
-  printf("SHIFT(%d)\n",get_symbol_value($1)->offset);}
+  printf("SHIFT(%d) // apply offset %d\n",get_symbol_value($1)->offset,get_symbol_value($1)->offset);}
 ;
 
 // IV.2. Conditionelles
@@ -369,8 +381,14 @@ exp
 // V.2. Booléens
 
 | NOT exp %prec UNA           {}
-| exp INF exp                 { printf("LTI\n") ;}
-| exp SUP exp                 { printf("GTI\n");}
+| exp INF exp                 { if($1 == FLOAT || $3 ==FLOAT) {printf("LTF\n");}
+                                else{
+                                  printf("LTI\n");
+                                }}
+| exp SUP exp                 { if($1 == FLOAT || $3 ==FLOAT) {printf("GTF\n");}
+                                else{
+                                  printf("GTI\n");
+                                }}
 | exp EQUAL exp               { if( $1 == $3){ $$ = 1;}
 else{$$=0;}}
 | exp DIFF exp                { if($1 != $3 ){$$ = 1;}
@@ -383,17 +401,29 @@ else {$$=0;}}
 // V.3 Applications de fonctions
 
 
-app : fid PO args PF          {}
+app : fid PO args PF          {
+  if( get_symbol_value($1)->type == INT){
+  printf("LOADI(0)\n");
+}else{
+  printf("LOADF(0.0)\n");
+}
+  printf("SAVEBP\n");
+  printf("CALL(call_%s)\n",$1);
+  printf("RESTOREBP\n");
+  printf("END_CALL(%d)\n",args_number);
+}
 ;
 
-fid : ID                      {}
+fid : ID                      {
+  args_number = 0 ;
+}
 
 args :  arglist               {}
 |                             {}
 ;
 
-arglist : arglist VIR exp     {} // récursion gauche pour empiler les arguements de la fonction de gauche à droite
-| exp                         {}
+arglist : arglist VIR exp     {args_number++;} // récursion gauche pour empiler les arguements de la fonction de gauche à droite
+| exp                         {args_number++;}
 ;
 
 
