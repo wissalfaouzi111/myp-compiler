@@ -1,0 +1,4 @@
+# bin/bash
+
+./myp < test/$1.myp > test/$1_pcode.c
+
