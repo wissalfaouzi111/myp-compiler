@@ -47,4 +47,10 @@ make
    ```bash
    ./run test1.1
    ```
-   Cette commande génère un fichier P-Code nommé `test/test1.1_pcode.c`
+   Cette commande génère un fichier P-Code nommé `test1.1_pcode.c` dans le repertoire PCode
+
+ 3. **Générer un exécutable** :
+   ```bash
+   cd PCode ; make test1.1
+   ```
+   Cette commande génère un exécutable nommé `test1.1` dans le repertoire PCode
