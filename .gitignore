@@ -1,0 +1,17 @@
+
+# Generated/compiler artifacts
+*.o
+lex.yy.c
+y.tab.c
+y.tab.h
+y.output
+myp
+*.myc
+
+# Local archives / extracted resources
+MyP/
+*.tar
+
+# macOS metadata
+.DS_Store
+._*
